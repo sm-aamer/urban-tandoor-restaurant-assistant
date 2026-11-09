@@ -46,8 +46,10 @@ uv venv
 uv sync
 ```
 
-Copy `.env.example` to `.env` and set values only when a later feature requires
-them. Do not commit `.env`.
+Copy `.env.example` to `.env` in this project directory and set `DATABASE_URL`
+to the connection string from Neon. Do not commit `.env` or share its contents.
+The application adapts PostgreSQL URLs to asyncpg and requires SSL for database
+connections.
 
 ## Run the development server
 
@@ -56,6 +58,9 @@ uv run uvicorn app.main:app --reload
 ```
 
 The health endpoint is available at `http://127.0.0.1:8000/health`.
+The database health endpoint is available at
+`http://127.0.0.1:8000/health/db` and returns HTTP 503 when the database is
+unavailable or not configured.
 Interactive Swagger documentation is available at
 `http://127.0.0.1:8000/docs`.
 
