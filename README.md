@@ -24,9 +24,9 @@ The planned inventory workbook,
 `Recipes`, `Menu_Availability`, `Stock_Movements`, and `Suppliers`.
 
 The restaurant profile document is
-`Urban_Tandoor_Grill_Restaurant_Profile.docx`. These source files were not
-present in the workspace when this project was initialized. Add them to `data/`
-when available; no restaurant records have been inferred or generated.
+`Urban_Tandoor_Grill_Restaurant_Profile.docx`. Both source files are stored in
+`data/`. The workbook is a source for future validated imports; no restaurant
+records are loaded automatically.
 
 ## Technology stack
 
@@ -63,6 +63,25 @@ The database health endpoint is available at
 unavailable or not configured.
 Interactive Swagger documentation is available at
 `http://127.0.0.1:8000/docs`.
+
+## Database migrations
+
+Alembic uses the application's `DATABASE_URL` setting and async engine. The
+URL is not stored in `alembic.ini`. Generate a candidate revision with:
+
+```powershell
+uv run alembic revision --autogenerate -m "describe schema change"
+```
+
+Review generated migration operations before applying them. To generate SQL
+without connecting to the database, use:
+
+```powershell
+uv run alembic upgrade head --sql
+```
+
+Applying migrations changes the database schema and should only be done after
+the migration has been reviewed and explicitly approved.
 
 ## Tests
 
