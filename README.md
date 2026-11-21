@@ -64,6 +64,41 @@ unavailable or not configured.
 Interactive Swagger documentation is available at
 `http://127.0.0.1:8000/docs`.
 
+## Branch API
+
+The versioned API exposes branch listing and CRUD operations under
+`/api/v1/branches`. Listing supports `limit` (1–100), `offset` (0–100000),
+and an optional `is_active` filter. Deleting a branch deactivates it by setting
+`is_active` to `false`; it does not physically delete the database row.
+
+Supplier listing and CRUD operations are available under
+`/api/v1/suppliers`, with the same pagination bounds and optional
+`is_active`/`supply_category` filters. Supplier `is_active` is nullable; list
+and read responses preserve `null`. Deleting a supplier only sets
+`is_active` to `false` and leaves related records unchanged.
+
+Ingredient listing and CRUD operations are available under
+`/api/v1/ingredients`, with bounded pagination and optional `is_active`,
+`category`, and `supplier_id` filters. Ingredient create/update validates
+suppliers, and deleting an ingredient only sets `is_active` to `false`.
+
+Menu item listing and CRUD operations are available under
+`/api/v1/menu-items`, with bounded pagination and optional `is_active` and
+`category` filters. Deleting a menu item only sets `is_active` to `false`;
+nullable fields, including `price_pkr`, can be cleared through partial updates.
+
+Recipe-item relationship endpoints are available under `/api/v1/recipe-items`.
+They validate referenced menu items and ingredients, enforce a unique
+menu-item/ingredient pair, and require a positive per-portion quantity with
+three decimal places. Deleting a recipe item removes only that relationship
+record.
+
+Menu availability endpoints are available under `/api/v1/menu-availability`.
+They validate branch and menu-item references and enforce one record per
+branch/menu-item pair. The nullable `is_available` value is preserved; list
+filter values may be `true`, `false`, or `null`. Deleting an availability
+record removes only that relationship.
+
 ## Database migrations
 
 Alembic uses the application's `DATABASE_URL` setting and async engine. The
