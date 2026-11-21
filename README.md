@@ -2,10 +2,16 @@
 
 ## Project overview
 
-A modular Python backend foundation for a restaurant assistant for the fictional
-Urban Tandoor & Grill in Karachi, Pakistan. This milestone provides project
-scaffolding and a health endpoint only; it does not connect to a database or
-implement restaurant workflows.
+A modular Python backend for a restaurant assistant for the fictional Urban
+Tandoor & Grill in Karachi, Pakistan. The project includes versioned restaurant
+APIs and database health checks. OpenRouter and LangGraph configuration, a
+bounded read-only database retrieval layer, the chat API, and short-lived
+in-memory conversation context are in place.
+
+The retrieval layer exposes approved reads for branches, suppliers, ingredients,
+menu items, recipe ingredients, and branch menu availability. It uses fixed
+SQLModel SELECT statements and validated arguments; it does not expose SQL
+execution or supplier contact information to chatbot tools.
 
 ## Restaurant profile
 
@@ -33,6 +39,7 @@ records are loaded automatically.
 - Python 3.12 and uv
 - FastAPI and Uvicorn
 - SQLModel, SQLAlchemy async, asyncpg, Alembic, and pgvector
+- LangGraph, the official OpenAI Python SDK, and OpenRouter's compatible API
 - Pandas and OpenPyXL
 - Pydantic Settings
 - pytest, pytest-asyncio, HTTPX, and Ruff
@@ -50,6 +57,15 @@ Copy `.env.example` to `.env` in this project directory and set `DATABASE_URL`
 to the connection string from Neon. Do not commit `.env` or share its contents.
 The application adapts PostgreSQL URLs to asyncpg and requires SSL for database
 connections.
+
+Create an API key in the
+[OpenRouter dashboard](https://openrouter.ai/settings/keys) and set
+`OPENROUTER_API_KEY` in the local `.env` file. The default model is
+`openrouter/free`, and the default API base URL is
+`https://openrouter.ai/api/v1`; both can be overridden with
+`OPENROUTER_MODEL` and `OPENROUTER_BASE_URL`. Keep the key on the server:
+never include it in frontend code, API requests, logs, or committed files.
+The key is optional for application startup.
 
 ## Run the development server
 
@@ -98,6 +114,53 @@ They validate branch and menu-item references and enforce one record per
 branch/menu-item pair. The nullable `is_available` value is preserved; list
 filter values may be `true`, `false`, or `null`. Deleting an availability
 record removes only that relationship.
+
+## Restaurant chat API
+
+`POST /api/v1/chat` accepts a JSON body containing a non-empty `question` of
+up to 2,000 characters and an optional `conversation_id` for follow-up questions:
+
+```json
+{"question": "What is the price of Chicken Karahi?"}
+```
+
+The response includes an opaque conversation ID. Supply it with a later
+question to resolve follow-up references:
+
+```json
+{
+  "question": "Which ingredients does it use?",
+  "conversation_id": "d7437f95-112a-4f69-9f31-cf74a4b92ff2"
+}
+```
+
+The response includes the answer, whether retrieval-backed answering completed,
+a status, and the number of approved retrieval calls:
+
+```json
+{
+  "answer": "The recorded price is PKR 850.00.",
+  "success": true,
+  "status": "completed",
+  "retrieval_count": 1,
+  "conversation_id": "d7437f95-112a-4f69-9f31-cf74a4b92ff2"
+}
+```
+
+Conversation text is held only in bounded process memory, expires after 30
+minutes by default, and is not shared across worker processes or retained after
+a restart. Configure the limits with `CHAT_MEMORY_TTL_SECONDS`,
+`CHAT_MEMORY_MAX_CONVERSATIONS`, `CHAT_MEMORY_MAX_MESSAGES`, and
+`CHAT_MEMORY_MAX_MESSAGE_LENGTH` (defaults: 1,000 conversations, 10 messages,
+and 2,000 characters per message). Expired entries are removed during store
+access and cleanup. At capacity, the least-recently-used inactive conversation
+is evicted; if all slots are active, new conversations receive a temporary
+service-unavailable response. Expired or evicted IDs return HTTP 410.
+
+`GET /api/v1/chat/health` reports whether an OpenRouter API key is configured;
+it does not make a provider request and never returns the key. Chat requests return
+sanitized HTTP 429 responses for provider rate limits and HTTP 503 responses
+when the provider, configuration, or database is unavailable.
 
 ## Database migrations
 
